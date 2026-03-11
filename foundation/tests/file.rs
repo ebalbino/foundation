@@ -80,7 +80,10 @@ fn shell_helpers_manage_files_and_directories() {
     assert_eq!(entries, vec![source.clone()]);
 
     file::copy(&source, &copy).unwrap();
-    assert_eq!(&file::load(arena.clone(), &copy).map(string::wrap).unwrap(), "hello");
+    assert_eq!(
+        &file::load(arena.clone(), &copy).map(string::wrap).unwrap(),
+        "hello"
+    );
 
     file::rename(&copy, &moved).unwrap();
     assert!(!file::exists(&copy));
