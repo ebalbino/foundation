@@ -131,6 +131,91 @@ fn multiple_executors_can_be_driven_round_robin() {
 }
 
 #[test]
+fn multiple_executors_with_multiple_yielding_tasks_stay_fair_under_round_robin() {
+    let arena_a = arena(8 * 1024);
+    let arena_b = arena(8 * 1024);
+    let mut left = executor::executor(arena_a, Vec::<&'static str>::new());
+    let mut right = executor::executor(arena_b, Vec::<&'static str>::new());
+
+    left.spawn(|value| async move {
+        value.update(|value| value.push("left-a-0"));
+        executor::yield_now().await;
+        value.update(|value| value.push("left-a-1"));
+        executor::yield_now().await;
+        value.update(|value| value.push("left-a-2"));
+        executor::yield_now().await;
+        value.update(|value| value.push("left-a-3"));
+    })
+    .unwrap();
+
+    left.spawn(|value| async move {
+        value.update(|value| value.push("left-b-0"));
+        executor::yield_now().await;
+        value.update(|value| value.push("left-b-1"));
+        executor::yield_now().await;
+        value.update(|value| value.push("left-b-2"));
+        executor::yield_now().await;
+        value.update(|value| value.push("left-b-3"));
+    })
+    .unwrap();
+
+    right
+        .spawn(|value| async move {
+            value.update(|value| value.push("right-a-0"));
+            executor::yield_now().await;
+            value.update(|value| value.push("right-a-1"));
+            executor::yield_now().await;
+            value.update(|value| value.push("right-a-2"));
+            executor::yield_now().await;
+            value.update(|value| value.push("right-a-3"));
+        })
+        .unwrap();
+
+    right
+        .spawn(|value| async move {
+            value.update(|value| value.push("right-b-0"));
+            executor::yield_now().await;
+            value.update(|value| value.push("right-b-1"));
+            executor::yield_now().await;
+            value.update(|value| value.push("right-b-2"));
+            executor::yield_now().await;
+            value.update(|value| value.push("right-b-3"));
+        })
+        .unwrap();
+
+    while !left.is_complete() || !right.is_complete() {
+        if !left.is_complete() {
+            assert_eq!(left.step(), Ok(Step::Progressed));
+        }
+
+        if !right.is_complete() {
+            assert_eq!(right.step(), Ok(Step::Progressed));
+        }
+    }
+
+    assert_eq!(
+        left.resolve().unwrap(),
+        vec![
+            "left-a-0", "left-b-0", "left-a-1", "left-b-1", "left-a-2", "left-b-2", "left-a-3",
+            "left-b-3",
+        ]
+    );
+    assert_eq!(
+        right.resolve().unwrap(),
+        vec![
+            "right-a-0",
+            "right-b-0",
+            "right-a-1",
+            "right-b-1",
+            "right-a-2",
+            "right-b-2",
+            "right-a-3",
+            "right-b-3",
+        ]
+    );
+}
+
+#[test]
 fn resolve_fails_when_external_shared_references_are_kept() {
     let arena = arena(1024);
     let executor = executor::executor(arena, 11_u32);
