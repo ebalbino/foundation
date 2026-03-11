@@ -7,7 +7,7 @@
 //!
 //! - create an [`Arena`] with [`arena`]
 //! - allocate typed slices with [`Arena::allocate`]
-//! - optionally store non-`Copy` values with [`Allocated::pin`]
+//! - optionally store non-`Copy` values with [`Arena::pin`]
 //! - reset the arena in bulk with [`Arena::reset`]
 //!
 //! [`Allocated<T>`] values weakly reference the source arena. If the arena is
@@ -24,6 +24,7 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::io::{self, Read, Write};
 use std::marker::PhantomData;
+use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::rc::{Rc, Weak};
@@ -120,6 +121,30 @@ impl Arena {
         self.allocate_raw::<T>(count)
     }
 
+    /// Places `value` in the arena and returns a pinned handle to it.
+    ///
+    /// This is the arena-backed alternative for values that must not move after
+    /// construction.
+    pub fn pin<T>(self: &Rc<Self>, value: T) -> Option<Pin<Pinned<T>>> {
+        let allocation = self.allocate_raw::<T>(1)?;
+        unsafe {
+            let ptr = allocation
+                .arena_if_current()?
+                .buffer
+                .as_ptr()
+                .add(allocation.offset) as *mut T;
+            ptr.write(value);
+        };
+
+        Some(unsafe {
+            Pin::new_unchecked(Pinned {
+                arena: self.clone(),
+                offset: allocation.offset,
+                marker: PhantomData,
+            })
+        })
+    }
+
     /// Returns the entire backing buffer for the arena.
     pub fn buffer(&self) -> &[u8] {
         &self.buffer[..]
@@ -165,33 +190,6 @@ impl Arena {
 }
 
 impl<T> Allocated<T> {
-    /// Places `value` in the arena and returns a pinned handle to it.
-    ///
-    /// This is the arena-backed alternative for values that must not move after
-    /// construction.
-    pub fn pin(arena: &Rc<Arena>, value: T) -> Option<Pin<Pinned<T>>> {
-        let allocation = arena.allocate_raw::<T>(1)?;
-        let ptr = unsafe {
-            allocation
-                .arena_if_current()?
-                .buffer
-                .as_ptr()
-                .add(allocation.offset) as *mut T
-        };
-
-        unsafe {
-            ptr.write(value);
-        }
-
-        Some(unsafe {
-            Pin::new_unchecked(Pinned {
-                arena: arena.clone(),
-                offset: allocation.offset,
-                marker: PhantomData,
-            })
-        })
-    }
-
     fn arena_if_current(&self) -> Option<Rc<Arena>> {
         let arena = self.arena.upgrade()?;
 
@@ -332,6 +330,29 @@ impl<T> Pinned<T> {
     /// Projects a pinned mutable `Pinned<T>` reference to a pinned mutable `T`.
     pub fn as_pin_mut(self: Pin<&mut Self>) -> Pin<&mut T> {
         unsafe { self.map_unchecked_mut(|value| &mut **value) }
+    }
+
+    pub(crate) fn into_raw_parts(this: Pin<Self>) -> (Rc<Arena>, usize) {
+        let pinned = ManuallyDrop::new(unsafe { Pin::into_inner_unchecked(this) });
+        (pinned.arena.clone(), pinned.offset)
+    }
+
+    pub(crate) unsafe fn from_raw_parts(arena: Rc<Arena>, offset: usize) -> Pin<Self> {
+        unsafe {
+            Pin::new_unchecked(Pinned {
+                arena,
+                offset,
+                marker: PhantomData,
+            })
+        }
+    }
+
+    pub(crate) unsafe fn pin_from_raw_parts<'a>(
+        arena: &'a Rc<Arena>,
+        offset: usize,
+    ) -> Pin<&'a mut T> {
+        let ptr = unsafe { arena.buffer.as_ptr().add(offset) as *mut T };
+        unsafe { Pin::new_unchecked(&mut *ptr) }
     }
 }
 

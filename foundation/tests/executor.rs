@@ -164,3 +164,32 @@ fn spawn_fails_when_the_arena_is_out_of_memory() {
     assert!(executor.spawn(|_value| async {}).is_none());
     assert_eq!(executor.pending(), 0);
 }
+
+#[test]
+fn spawn_fails_when_the_queue_is_at_capacity() {
+    let arena = arena(1024);
+    let mut executor = executor::executor_with_capacity(arena, 1_u32, 1);
+
+    assert!(executor.spawn(|_value| async {}).is_some());
+    assert!(executor.spawn(|_value| async {}).is_none());
+    assert_eq!(executor.pending(), 1);
+}
+
+#[test]
+fn step_requeues_a_task_that_yields() {
+    let arena = arena(1024);
+    let mut executor = executor::executor(arena, Vec::<u8>::new());
+
+    executor
+        .spawn(|value| async move {
+            value.update(|value| value.push(1));
+            executor::yield_now().await;
+            value.update(|value| value.push(2));
+        })
+        .unwrap();
+
+    assert_eq!(executor.step(), Ok(Step::Progressed));
+    assert_eq!(executor.pending(), 1);
+    assert_eq!(executor.run(), Ok(()));
+    assert_eq!(executor.resolve().unwrap(), vec![1, 2]);
+}

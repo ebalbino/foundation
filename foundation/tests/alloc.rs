@@ -107,16 +107,16 @@ fn allocations_become_empty_after_the_arena_generation_changes() {
 }
 
 #[test]
-fn allocated_pin_keeps_values_alive_without_the_original_arena_handle() {
+fn arena_pin_keeps_values_alive_without_the_original_arena_handle() {
     let arena = arena(64);
-    let pinned = alloc::Allocated::pin(&arena, 123_u32).unwrap();
+    let pinned = arena.pin(123_u32).unwrap();
     drop(arena);
 
     assert_eq!(*pinned, 123);
 }
 
 #[test]
-fn allocated_pin_drops_the_inner_value() {
+fn arena_pin_drops_the_inner_value() {
     struct DropTracker(Rc<Cell<bool>>);
 
     impl Drop for DropTracker {
@@ -127,7 +127,7 @@ fn allocated_pin_drops_the_inner_value() {
 
     let dropped = Rc::new(Cell::new(false));
     let arena = arena(64);
-    let pinned = alloc::Allocated::pin(&arena, DropTracker(dropped.clone())).unwrap();
+    let pinned = arena.pin(DropTracker(dropped.clone())).unwrap();
 
     drop(pinned);
 
@@ -135,7 +135,7 @@ fn allocated_pin_drops_the_inner_value() {
 }
 
 #[test]
-fn allocated_pin_supports_polling_pinned_futures() {
+fn arena_pin_supports_polling_pinned_futures() {
     struct ReadyOnce {
         value: u32,
         _pin: PhantomPinned,
@@ -157,14 +157,12 @@ fn allocated_pin_supports_polling_pinned_futures() {
     }
 
     let arena = arena(64);
-    let mut pinned = alloc::Allocated::pin(
-        &arena,
-        ReadyOnce {
+    let mut pinned = arena
+        .pin(ReadyOnce {
             value: 99,
             _pin: PhantomPinned,
-        },
-    )
-    .unwrap();
+        })
+        .unwrap();
     let waker = Waker::from(Arc::new(NoopWake));
     let mut cx = Context::from_waker(&waker);
 
