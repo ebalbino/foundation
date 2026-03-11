@@ -84,6 +84,23 @@ pub struct Instance {
     desc: Rc<Description>,
 }
 
+impl Instance {
+    /// Returns a pointer to the first byte of the reflected value.
+    pub fn as_ptr(&self) -> *const u8 {
+        self.data
+    }
+
+    /// Returns the size of the reflected value in bytes.
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
+    /// Returns the reflected description associated with this value.
+    pub fn description(&self) -> &Description {
+        &self.desc
+    }
+}
+
 /// Associates arena-backed data with a registered description.
 ///
 /// `key` is resolved through `registry`. If a description is found, an [`Instance`]
