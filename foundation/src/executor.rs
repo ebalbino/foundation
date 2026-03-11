@@ -17,11 +17,11 @@ mod wake;
 mod yield_now;
 
 use crate::alloc::Arena;
-use std::collections::VecDeque;
-use std::future::Future as StdFuture;
-use std::pin::Pin;
-use std::rc::Rc;
-use std::task::{Context, Poll};
+use crate::rust_alloc::collections::VecDeque;
+use crate::rust_alloc::rc::Rc;
+use core::future::Future as StdFuture;
+use core::pin::Pin;
+use core::task::{Context, Poll};
 
 pub use shared::Shared;
 use task::Task;

@@ -6,6 +6,8 @@
 //! - records are written as plain text to standard error
 //! - initialization installs the logger as the process-global `log` backend
 
+use crate::rust_alloc::boxed::Box;
+use crate::rust_alloc::format;
 use std::io::{self, Write};
 
 pub use ::log::{Level, LevelFilter, Metadata, Record, SetLoggerError};
@@ -40,7 +42,7 @@ impl Logger {
         ::log::set_logger(logger).map(|()| ::log::set_max_level(level))
     }
 
-    fn format(record: &Record<'_>) -> std::string::String {
+    fn format(record: &Record<'_>) -> crate::rust_alloc::string::String {
         format!("[{} {}] {}", record.level(), record.target(), record.args())
     }
 }

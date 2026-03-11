@@ -3,6 +3,10 @@ name = "foundation"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+std = []
+
 [dependencies]
 base64 = "0.22.1"
 fxhash = "0.2.1"
@@ -10,3 +14,11 @@ json = "0.12.4"
 log = "0.4.29"
 toml = "=1.0.3"
 yaml-rust2 = "0.11.0"
+
+[[test]]
+name = "file"
+required-features = ["std"]
+
+[[test]]
+name = "process"
+required-features = ["std"]

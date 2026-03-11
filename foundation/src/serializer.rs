@@ -16,9 +16,10 @@
 //! an uninitialized output buffer and then returned by value.
 
 use crate::reflect::{Base, Description, Introspectable, Value};
+use crate::rust_alloc::string::String;
 use json::JsonValue;
-use std::mem::MaybeUninit;
-use std::ptr;
+use core::mem::MaybeUninit;
+use core::ptr;
 
 /// Errors returned while serializing to or deserializing from JSON.
 ///
@@ -35,12 +36,12 @@ pub enum Error {
     /// A JSON number could not be interpreted as the requested numeric type.
     InvalidNumber {
         expected: &'static str,
-        found: std::string::String,
+        found: String,
     },
     /// A numeric value was parsed but does not fit in the destination type.
     OutOfRange {
         expected: &'static str,
-        found: std::string::String,
+        found: String,
     },
 }
 
@@ -188,7 +189,7 @@ pub fn deserialize<T: Introspectable + Copy>(value: &JsonValue) -> Result<T, Err
     let mut output = MaybeUninit::<T>::uninit();
     let out_ptr = output.as_mut_ptr() as *mut u8;
 
-    unsafe { ptr::write_bytes(out_ptr, 0, std::mem::size_of::<T>()) };
+    unsafe { ptr::write_bytes(out_ptr, 0, core::mem::size_of::<T>()) };
     deserialize_desc(&desc, out_ptr, value)?;
 
     Ok(unsafe { output.assume_init() })

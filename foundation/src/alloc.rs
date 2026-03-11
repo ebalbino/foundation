@@ -17,16 +17,16 @@
 pub mod buffer;
 pub mod string;
 
+use crate::rust_alloc::boxed::Box;
+use crate::rust_alloc::rc::{Rc, Weak};
 use core::fmt;
-use std::cell::Cell;
-use std::convert::{AsMut, AsRef};
-use std::fmt::Debug;
-use std::hash::{Hash, Hasher};
-use std::io::{self, Read, Write};
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
-use std::rc::{Rc, Weak};
+use core::cell::Cell;
+use core::convert::{AsMut, AsRef};
+use core::fmt::Debug;
+use core::hash::{Hash, Hasher};
+use core::marker::PhantomData;
+use core::ops::{Deref, DerefMut};
+use core::pin::Pin;
 
 pub use buffer::{BufferBuilder, builder as buffer_builder};
 pub use string::builder::{StringBuilder, builder as string_builder};
@@ -83,7 +83,7 @@ pub fn arena(capacity: usize) -> Rc<Arena> {
 /// Returns `None` if the arena no longer exists or there is not enough capacity.
 pub fn duplicate<T: Copy>(src: &Allocated<T>) -> Option<Allocated<T>> {
     let arena = src.arena.upgrade()?;
-    arena.allocate::<T>(src.len()).map(|mut clone| {
+    arena.allocate::<T>(src.len()).map(|mut clone: Allocated<T>| {
         clone.copy_from_slice(src);
         clone
     })
@@ -155,7 +155,7 @@ impl Arena {
     pub fn reset(self: &mut Rc<Arena>) {
         if Rc::strong_count(self) == 1 {
             unsafe {
-                std::ptr::write_bytes(self.buffer.as_ptr() as *mut u8, 0, self.buffer.len());
+                core::ptr::write_bytes(self.buffer.as_ptr() as *mut u8, 0, self.buffer.len());
             }
 
             self.rewind();
@@ -211,7 +211,7 @@ impl<T> Deref for Allocated<T> {
         match self.arena_if_current() {
             Some(a) => unsafe {
                 let ptr = a.buffer.as_ptr().add(self.offset) as *const T;
-                std::slice::from_raw_parts(ptr, self.count)
+                core::slice::from_raw_parts(ptr, self.count)
             },
             None => &[],
         }
@@ -223,7 +223,7 @@ impl<T> DerefMut for Allocated<T> {
         match self.arena_if_current() {
             Some(a) => unsafe {
                 let ptr = a.buffer.as_ptr().add(self.offset) as *mut T;
-                std::slice::from_raw_parts_mut(ptr, self.count)
+                core::slice::from_raw_parts_mut(ptr, self.count)
             },
             None => &mut [],
         }
@@ -235,7 +235,7 @@ impl<T> AsRef<[u8]> for Allocated<T> {
         match self.arena_if_current() {
             Some(a) => unsafe {
                 let ptr = a.buffer.as_ptr().add(self.offset);
-                std::slice::from_raw_parts(ptr, self.count * std::mem::size_of::<T>())
+                core::slice::from_raw_parts(ptr, self.count * core::mem::size_of::<T>())
             },
             None => &[],
         }
@@ -247,39 +247,41 @@ impl<T> AsMut<[u8]> for Allocated<T> {
         match self.arena_if_current() {
             Some(a) => unsafe {
                 let ptr = a.buffer.as_ptr().add(self.offset) as *mut u8;
-                std::slice::from_raw_parts_mut(ptr, self.count * std::mem::size_of::<T>())
+                core::slice::from_raw_parts_mut(ptr, self.count * core::mem::size_of::<T>())
             },
             None => &mut [],
         }
     }
 }
 
-impl<T> Read for Allocated<T> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+#[cfg(feature = "std")]
+impl<T> std::io::Read for Allocated<T> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let inner = self.as_ref();
 
         if inner.len() == buf.len() {
             buf.copy_from_slice(inner);
             Ok(inner.len())
         } else {
-            Err(io::Error::other("Buffer not same size"))
+            Err(std::io::Error::other("Buffer not same size"))
         }
     }
 }
 
-impl<T> Write for Allocated<T> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+#[cfg(feature = "std")]
+impl<T> std::io::Write for Allocated<T> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let inner = self.as_mut();
 
         if inner.len() == buf.len() {
             inner.copy_from_slice(buf);
             Ok(inner.len())
         } else {
-            Err(io::Error::other("Buffer not same size"))
+            Err(std::io::Error::other("Buffer not same size"))
         }
     }
 
-    fn flush(&mut self) -> io::Result<()> {
+    fn flush(&mut self) -> std::io::Result<()> {
         Ok(())
     }
 }
@@ -339,7 +341,7 @@ impl<T> Pinned<T> {
 impl<T> Drop for Pinned<T> {
     fn drop(&mut self) {
         unsafe {
-            std::ptr::drop_in_place(self.deref_mut());
+            core::ptr::drop_in_place(self.deref_mut());
         }
     }
 }

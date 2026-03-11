@@ -1,6 +1,6 @@
-use std::future::Future as StdFuture;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use core::future::Future as StdFuture;
+use core::pin::Pin;
+use core::task::{Context, Poll};
 
 /// Returns a future that yields once before completing.
 ///

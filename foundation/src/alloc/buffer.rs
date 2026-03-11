@@ -1,6 +1,6 @@
 use crate::alloc::{Allocated, Arena};
-use std::io::Write;
-use std::rc::Rc;
+use crate::rust_alloc::rc::Rc;
+use crate::rust_alloc::vec::Vec;
 
 /// Incrementally builds a contiguous byte buffer inside an [`Arena`].
 ///
@@ -92,7 +92,8 @@ impl BufferBuilder {
     }
 }
 
-impl Write for BufferBuilder {
+#[cfg(feature = "std")]
+impl std::io::Write for BufferBuilder {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.append(buf).ok_or_else(|| {
             std::io::Error::new(

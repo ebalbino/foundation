@@ -2,9 +2,10 @@ pub mod builder;
 pub mod pool;
 
 use crate::alloc::{self, Allocated, Arena};
-use std::fmt::{Debug, Display};
-use std::hash::{Hash, Hasher};
-use std::{ops::Deref, rc::Rc};
+use crate::rust_alloc::rc::Rc;
+use core::fmt::{self, Debug, Display};
+use core::hash::{Hash, Hasher};
+use core::ops::Deref;
 
 /// Immutable UTF-8 text stored in arena-backed memory.
 #[derive(Clone)]
@@ -16,7 +17,7 @@ pub struct String {
 ///
 /// `StringRef` is useful as a cheap handle when the caller can guarantee the
 /// underlying bytes stay alive.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StringRef {
     buffer: *const u8,
     len: usize,
@@ -25,7 +26,7 @@ pub struct StringRef {
 /// Allocates UTF-8 bytes into the arena and returns them as [`String`].
 pub fn make(arena: Rc<Arena>, s: impl AsRef<[u8]>) -> Option<String> {
     let bytes = s.as_ref();
-    arena.allocate::<u8>(bytes.len()).map(|mut buffer| {
+    arena.allocate::<u8>(bytes.len()).map(|mut buffer: Allocated<u8>| {
         buffer.copy_from_slice(bytes);
 
         String { buffer }
@@ -58,7 +59,7 @@ impl Deref for String {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { std::str::from_utf8_unchecked(&self.buffer) }
+        unsafe { core::str::from_utf8_unchecked(&self.buffer) }
     }
 }
 
@@ -66,7 +67,7 @@ impl Deref for StringRef {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.buffer, self.len)) }
+        unsafe { core::str::from_utf8_unchecked(core::slice::from_raw_parts(self.buffer, self.len)) }
     }
 }
 
@@ -131,25 +132,25 @@ impl PartialEq<String> for StringRef {
 }
 
 impl Debug for String {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self)
     }
 }
 
 impl Debug for StringRef {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self)
     }
 }
 
 impl Display for String {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self)
     }
 }
 
 impl Display for StringRef {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self)
     }
 }

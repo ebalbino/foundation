@@ -1,9 +1,11 @@
 use crate::alloc::Allocated;
 use crate::reflect::{Base, Description, Value};
-use std::cell::{Cell, RefCell};
-use std::ptr::NonNull;
-use std::rc::Rc;
-use std::vec::Vec;
+use crate::rust_alloc::boxed::Box;
+use crate::rust_alloc::rc::Rc;
+use crate::rust_alloc::vec;
+use crate::rust_alloc::vec::Vec;
+use core::cell::{Cell, RefCell};
+use core::ptr::NonNull;
 
 /// Produces a structural description for a type.
 ///
@@ -29,7 +31,7 @@ macro_rules! introspect_scalar {
     };
 }
 
-introspect_scalar!((), "void", ::std::mem::size_of::<()>(), Base::Void);
+introspect_scalar!((), "void", ::core::mem::size_of::<()>(), Base::Void);
 introspect_scalar!(u8, "u8", 1, Base::Unsigned8);
 introspect_scalar!(u16, "u16", 2, Base::Unsigned16);
 introspect_scalar!(u32, "u32", 4, Base::Unsigned32);
@@ -37,7 +39,7 @@ introspect_scalar!(u64, "u64", 8, Base::Unsigned64);
 introspect_scalar!(
     usize,
     "usize",
-    ::std::mem::size_of::<usize>(),
+    ::core::mem::size_of::<usize>(),
     Base::UnsignedPtr
 );
 introspect_scalar!(i8, "i8", 1, Base::Signed8);
@@ -47,7 +49,7 @@ introspect_scalar!(i64, "i64", 8, Base::Signed64);
 introspect_scalar!(
     isize,
     "isize",
-    ::std::mem::size_of::<isize>(),
+    ::core::mem::size_of::<isize>(),
     Base::SignedPtr
 );
 introspect_scalar!(f32, "f32", 4, Base::Float32);
@@ -57,7 +59,7 @@ impl<T: Introspectable> Introspectable for *const T {
     fn description() -> Description {
         Description {
             name: "*const",
-            size: ::std::mem::size_of::<*const T>(),
+            size: ::core::mem::size_of::<*const T>(),
             value: Value::Reference {
                 pointee: Box::new(T::description()),
             },
@@ -69,7 +71,7 @@ impl<T: Introspectable> Introspectable for *mut T {
     fn description() -> Description {
         Description {
             name: "*mut",
-            size: ::std::mem::size_of::<*const T>(),
+            size: ::core::mem::size_of::<*const T>(),
             value: Value::Reference {
                 pointee: Box::new(T::description()),
             },
@@ -81,7 +83,7 @@ impl<T: Introspectable> Introspectable for NonNull<T> {
     fn description() -> Description {
         Description {
             name: "*nonnull",
-            size: ::std::mem::size_of::<NonNull<T>>(),
+            size: ::core::mem::size_of::<NonNull<T>>(),
             value: Value::Reference {
                 pointee: Box::new(T::description()),
             },
@@ -93,7 +95,7 @@ impl<T: Introspectable> Introspectable for Box<T> {
     fn description() -> Description {
         Description {
             name: "*unique",
-            size: ::std::mem::size_of::<T>(),
+            size: ::core::mem::size_of::<T>(),
             value: Value::Reference {
                 pointee: Box::new(T::description()),
             },
@@ -105,7 +107,7 @@ impl<T: Introspectable> Introspectable for Rc<T> {
     fn description() -> Description {
         Description {
             name: "*shared",
-            size: ::std::mem::size_of::<T>(),
+            size: ::core::mem::size_of::<T>(),
             value: Value::Reference {
                 pointee: Box::new(T::description()),
             },
@@ -117,7 +119,7 @@ impl<T: Introspectable> Introspectable for Option<T> {
     fn description() -> Description {
         Description {
             name: "option",
-            size: ::std::mem::size_of::<Option<T>>(),
+            size: ::core::mem::size_of::<Option<T>>(),
             value: Value::Enumeration {
                 values: vec![<()>::description(), T::description()],
             },
@@ -129,7 +131,7 @@ impl<T: Introspectable, E: Introspectable> Introspectable for Result<T, E> {
     fn description() -> Description {
         Description {
             name: "result",
-            size: ::std::mem::size_of::<Result<T, E>>(),
+            size: ::core::mem::size_of::<Result<T, E>>(),
             value: Value::Enumeration {
                 values: vec![E::description(), T::description()],
             },
@@ -141,7 +143,7 @@ impl<T: Introspectable> Introspectable for Cell<T> {
     fn description() -> Description {
         Description {
             name: "cell",
-            size: ::std::mem::size_of::<Cell<T>>(),
+            size: ::core::mem::size_of::<Cell<T>>(),
             value: Value::Reference {
                 pointee: Box::new(T::description()),
             },
@@ -153,7 +155,7 @@ impl<T: Introspectable> Introspectable for RefCell<T> {
     fn description() -> Description {
         Description {
             name: "refcell",
-            size: ::std::mem::size_of::<RefCell<T>>(),
+            size: ::core::mem::size_of::<RefCell<T>>(),
             value: Value::Reference {
                 pointee: Box::new(T::description()),
             },
@@ -165,7 +167,7 @@ impl<T: Introspectable> Introspectable for Vec<T> {
     fn description() -> Description {
         Description {
             name: "vec",
-            size: ::std::mem::size_of::<Vec<T>>(),
+            size: ::core::mem::size_of::<Vec<T>>(),
             value: Value::Reference {
                 pointee: Box::new(T::description()),
             },
@@ -177,7 +179,7 @@ impl<T: Introspectable> Introspectable for Allocated<T> {
     fn description() -> Description {
         Description {
             name: "*arena",
-            size: ::std::mem::size_of::<Allocated<T>>(),
+            size: ::core::mem::size_of::<Allocated<T>>(),
             value: Value::Reference {
                 pointee: Box::new(T::description()),
             },

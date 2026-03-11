@@ -1,7 +1,7 @@
 use crate::alloc::Arena;
 use crate::alloc::string::{self, String};
-use std::collections::{HashMap, hash_map::Entry};
-use std::rc::Rc;
+use crate::rust_alloc::collections::BTreeMap;
+use crate::rust_alloc::rc::Rc;
 
 /// Interns strings into an arena-backed pool.
 ///
@@ -10,14 +10,14 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct StringPool {
     arena: Rc<Arena>,
-    map: HashMap<usize, String>,
+    map: BTreeMap<usize, String>,
 }
 
 /// Creates an empty [`StringPool`] backed by `arena`.
 pub fn pool(arena: Rc<Arena>) -> StringPool {
     StringPool {
         arena: arena.clone(),
-        map: HashMap::new(),
+        map: BTreeMap::new(),
     }
 }
 
@@ -27,8 +27,7 @@ impl StringPool {
         let value = value.as_ref();
         let key = fxhash::hash(value);
 
-        if let Entry::Occupied(entry) = self.map.entry(key) {
-            let v = entry.get();
+        if let Some(v) = self.map.get(&key) {
             return Some(v.clone());
         }
 

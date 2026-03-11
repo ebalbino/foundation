@@ -9,6 +9,7 @@ mod string_pool;
 
 use foundation::alloc::{self, arena};
 use std::cell::Cell;
+#[cfg(feature = "std")]
 use std::io::{Read, Write};
 use std::marker::PhantomPinned;
 use std::pin::Pin;
@@ -48,6 +49,7 @@ fn duplicate_copies_into_new_allocation() {
     assert_ne!(values.as_ptr(), copy.as_ptr());
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn allocated_read_and_write_require_matching_sizes() {
     let arena = arena(32);
@@ -86,6 +88,7 @@ fn reset_rewinds_and_zeroes_the_buffer() {
     assert!(arena.buffer().iter().all(|byte| *byte == 0));
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn allocations_become_empty_after_the_arena_generation_changes() {
     let mut arena = arena(32);

@@ -13,6 +13,7 @@
 //!   from the underlying `std::process::Child`
 
 use crate::alloc::{String, StringBuilder};
+use crate::rust_alloc::vec::Vec;
 use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::process::{Child, Command, Stdio};

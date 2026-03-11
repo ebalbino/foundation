@@ -1,8 +1,8 @@
 use crate::alloc::{Allocated, Arena, StringPool, StringRef, string_pool};
 use crate::reflect::Description;
 use crate::reflect::Introspectable;
-use std::collections::HashMap;
-use std::rc::Rc;
+use crate::rust_alloc::collections::BTreeMap;
+use crate::rust_alloc::rc::Rc;
 
 /// Name-based storage for reflected type descriptions.
 ///
@@ -11,7 +11,7 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct TypeRegistry {
     pool: StringPool,
-    map: HashMap<StringRef, Rc<Description>>,
+    map: BTreeMap<StringRef, Rc<Description>>,
 }
 
 impl TypeRegistry {
@@ -67,7 +67,7 @@ pub fn initialize(arena: Rc<Arena>) -> TypeRegistry {
     let pool = string_pool(arena.clone());
     let mut registry = TypeRegistry {
         pool,
-        map: HashMap::new(),
+        map: BTreeMap::new(),
     };
 
     registry_set!(registry, (), "void");

@@ -19,10 +19,16 @@
 
 use crate::alloc::string::String;
 use crate::alloc::{Arena, StringBuilder, string_builder};
+use crate::rust_alloc::borrow::ToOwned;
+use crate::rust_alloc::format;
+use crate::rust_alloc::rc::Rc;
+use crate::rust_alloc::string::String as StdString;
+use crate::rust_alloc::vec;
+use crate::rust_alloc::vec::Vec;
 use json::JsonValue;
-use std::fmt::Write;
+use core::fmt::{self, Write};
+#[cfg(feature = "std")]
 use std::path::Path;
-use std::rc::Rc;
 
 /// A parsed template ready to be rendered against JSON data.
 #[derive(Debug, Clone)]
@@ -32,15 +38,15 @@ pub struct Template {
 
 #[derive(Debug, Clone)]
 enum Node {
-    Text(std::string::String),
-    Eval(std::string::String),
+    Text(StdString),
+    Eval(StdString),
     If {
-        condition: std::string::String,
+        condition: StdString,
         then_nodes: Vec<Node>,
         else_nodes: Vec<Node>,
     },
     Each {
-        binding: std::string::String,
+        binding: StdString,
         body: Vec<Node>,
     },
 }
@@ -49,9 +55,9 @@ enum Node {
 #[derive(Debug, Clone)]
 pub enum TemplateError {
     /// A filesystem error occurred while reading a template file.
-    Io(std::string::String),
+    Io(StdString),
     /// The template source contained invalid syntax.
-    Parse(std::string::String),
+    Parse(StdString),
 }
 
 impl Template {
@@ -74,6 +80,7 @@ impl Template {
     }
 
     /// Loads a template from disk and parses it.
+    #[cfg(feature = "std")]
     pub fn load(path: impl AsRef<Path>) -> Result<Self, TemplateError> {
         let source = std::fs::read_to_string(path.as_ref()).map_err(|e| {
             TemplateError::Io(format!(
@@ -110,8 +117,8 @@ impl Template {
     }
 }
 
-impl std::fmt::Display for TemplateError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for TemplateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TemplateError::Io(message) => write!(f, "{message}"),
             TemplateError::Parse(message) => write!(f, "{message}"),
@@ -119,21 +126,22 @@ impl std::fmt::Display for TemplateError {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for TemplateError {}
 
 #[derive(Debug, Clone)]
 enum Token {
-    Text(std::string::String),
+    Text(StdString),
     Tag(Tag),
 }
 
 #[derive(Debug, Clone)]
 enum Tag {
-    Eval(std::string::String),
-    IfStart(std::string::String),
+    Eval(StdString),
+    IfStart(StdString),
     Else,
     IfEnd,
-    EachStart(std::string::String),
+    EachStart(StdString),
     EachEnd,
 }
 

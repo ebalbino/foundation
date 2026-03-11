@@ -1,5 +1,5 @@
-use std::cell::Cell;
-use std::task::{RawWaker, RawWakerVTable, Waker};
+use core::cell::Cell;
+use core::task::{RawWaker, RawWakerVTable, Waker};
 
 #[derive(Default)]
 pub(crate) struct WakerState {

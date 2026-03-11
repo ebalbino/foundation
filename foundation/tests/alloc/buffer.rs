@@ -1,4 +1,5 @@
 use foundation::alloc::{arena, buffer_builder};
+#[cfg(feature = "std")]
 use std::io::Write;
 
 #[test]
@@ -30,6 +31,7 @@ fn clear_discards_previous_contents() {
     assert_eq!(&bytes[..], b"bye");
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn write_trait_appends_bytes() {
     let arena = arena(256);

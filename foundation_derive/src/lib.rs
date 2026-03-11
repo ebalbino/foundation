@@ -139,7 +139,8 @@ fn derive_struct(ty_ident: &Ident, fields: Fields) -> proc_macro2::TokenStream {
     quote! {
         impl ::foundation::reflect::Introspectable for #ty_ident {
             fn description() -> ::foundation::reflect::Description {
-                let mut fields: ::std::vec::Vec<::foundation::reflect::Field> = ::std::vec::Vec::new();
+                let mut fields: ::foundation::rust_alloc::vec::Vec<::foundation::reflect::Field> =
+                    ::foundation::rust_alloc::vec::Vec::new();
                 #( fields.push(#field_inits); )*
 
                 ::foundation::reflect::Description {

@@ -1,6 +1,6 @@
 use super::ExecutorError;
-use std::cell::RefCell;
-use std::rc::Rc;
+use crate::rust_alloc::rc::Rc;
+use core::cell::RefCell;
 
 /// Shared access to the executor-owned value.
 ///

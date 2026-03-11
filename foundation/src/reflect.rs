@@ -16,7 +16,9 @@
 //! description, but today it is primarily a typed pairing of data and metadata.
 
 use crate::alloc::Allocated;
-use std::rc::Rc;
+use crate::rust_alloc::boxed::Box;
+use crate::rust_alloc::rc::Rc;
+use crate::rust_alloc::vec::Vec;
 
 mod introspectable;
 pub mod registry;
@@ -84,6 +86,23 @@ pub struct Instance {
     desc: Rc<Description>,
 }
 
+impl Instance {
+    /// Returns the raw pointer to the start of the reflected bytes.
+    pub fn data(&self) -> *const u8 {
+        self.data
+    }
+
+    /// Returns the number of bytes available at [`Self::data`].
+    pub fn size(&self) -> usize {
+        self.size
+    }
+
+    /// Returns the reflected description associated with this instance.
+    pub fn description(&self) -> &Description {
+        self.desc.as_ref()
+    }
+}
+
 /// Associates arena-backed data with a registered description.
 ///
 /// `key` is resolved through `registry`. If a description is found, an [`Instance`]
@@ -93,7 +112,7 @@ pub fn introspect<T: Introspectable>(
     key: impl AsRef<str>,
     data: &Allocated<T>,
 ) -> Option<Instance> {
-    registry.get(key).map(|desc| {
+    registry.get(key).map(|desc: &Rc<Description>| {
         let data = data.as_ref();
         Instance {
             data: data.as_ptr(),

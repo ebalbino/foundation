@@ -8,6 +8,7 @@
 //! Use these helpers when you want a compact parsing entry point in examples,
 //! tests, or application code.
 
+use crate::rust_alloc::vec::Vec;
 use json::JsonValue;
 use toml::Table;
 use yaml_rust2::yaml::{Yaml, YamlLoader};

@@ -1,8 +1,8 @@
 use super::wake::WakerState;
-use std::future::Future as StdFuture;
-use std::mem;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use core::future::Future as StdFuture;
+use core::mem;
+use core::pin::Pin;
+use core::task::{Context, Poll};
 
 pub(crate) struct Task {
     future: *mut (),
@@ -54,6 +54,6 @@ where
     Fut: 'static,
 {
     unsafe {
-        std::ptr::drop_in_place(future.cast::<Fut>());
+        core::ptr::drop_in_place(future.cast::<Fut>());
     }
 }

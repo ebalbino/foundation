@@ -13,9 +13,12 @@
 //! `mv`, `rm`, and `ls`, this module currently assumes a Unix-like environment.
 
 use crate::alloc::{Allocated, Arena};
+use crate::rust_alloc::format;
+use crate::rust_alloc::rc::Rc;
+use crate::rust_alloc::string::String;
+use crate::rust_alloc::vec::Vec;
 use std::ffi::OsStr;
 use std::io::Write;
-use std::rc::Rc;
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -28,7 +31,7 @@ use std::{
 /// remaining capacity to hold the bytes.
 pub fn load<P: AsRef<Path>>(arena: Rc<Arena>, path: P) -> Option<Allocated<u8>> {
     let data = fs::read(path).ok()?;
-    arena.allocate::<u8>(data.len()).map(|mut buffer| {
+    arena.allocate::<u8>(data.len()).map(|mut buffer: Allocated<u8>| {
         buffer.copy_from_slice(&data);
         buffer
     })
@@ -51,7 +54,8 @@ pub fn append<P: AsRef<Path>, D: AsRef<[u8]>>(path: P, data: D) -> io::Result<us
 ///
 /// This is implemented by invoking `pwd`.
 pub fn cwd() -> io::Result<PathBuf> {
-    shell_output("pwd", std::iter::empty::<&OsStr>()).map(|output| PathBuf::from(output.trim()))
+    shell_output("pwd", std::iter::empty::<&OsStr>())
+        .map(|output: String| PathBuf::from(output.trim()))
 }
 
 /// Returns `true` when `path` exists.
