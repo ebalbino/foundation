@@ -7,3 +7,4 @@ pub mod process;
 pub mod reflect;
 pub mod serializer;
 pub mod template;
+pub mod thread;

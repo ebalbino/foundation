@@ -22,6 +22,7 @@ This workspace contains two Rust crates:
 - `reflect`: runtime type descriptions, an `Introspectable` trait, and a type registry.
 - `serializer`: JSON serialization and deserialization built on top of the reflection metadata.
 - `template`: a compact JSON-backed template engine with `{{path}}`, `{{#if}}`, and `{{#each}}`.
+- `thread`: declarative helpers for configuring threads, handing work across threads, and running a simple worker pool.
 
 This crate is the runtime half of the workspace. If you only need the utilities and reflection APIs, this is the crate to depend on.
 
