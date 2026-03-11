@@ -162,15 +162,13 @@ impl Arena {
             self.generation.set(self.generation.get() + 1);
         }
     }
-}
 
-impl<T> Allocated<T> {
     /// Places `value` in the arena and returns a pinned handle to it.
     ///
     /// This is the arena-backed alternative for values that must not move after
     /// construction.
-    pub fn pin(arena: &Rc<Arena>, value: T) -> Option<Pin<Pinned<T>>> {
-        let allocation = arena.allocate_raw::<T>(1)?;
+    pub fn pin<T>(self: &Rc<Arena>, value: T) -> Option<Pin<Pinned<T>>> {
+        let allocation = self.allocate_raw::<T>(1)?;
         let ptr = unsafe {
             allocation
                 .arena_if_current()?
@@ -185,13 +183,16 @@ impl<T> Allocated<T> {
 
         Some(unsafe {
             Pin::new_unchecked(Pinned {
-                arena: arena.clone(),
+                arena: self.clone(),
                 offset: allocation.offset,
                 marker: PhantomData,
             })
         })
     }
 
+}
+
+impl<T> Allocated<T> {
     fn arena_if_current(&self) -> Option<Rc<Arena>> {
         let arena = self.arena.upgrade()?;
 

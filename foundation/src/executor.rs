@@ -16,7 +16,7 @@ mod task;
 mod wake;
 mod yield_now;
 
-use crate::alloc::{Allocated, Arena};
+use crate::alloc::Arena;
 use std::collections::VecDeque;
 use std::future::Future as StdFuture;
 use std::pin::Pin;
@@ -84,8 +84,8 @@ impl<T> Executor<T> {
         F: FnOnce(Shared<T>) -> Fut + 'static,
         Fut: StdFuture<Output = ()> + 'static,
     {
-        let future = Allocated::pin(&self.arena, f(self.shared()))?;
-        let task = Allocated::pin(&self.arena, Task::new(future))?;
+        let future = self.arena.pin(f(self.shared()))?;
+        let task = self.arena.pin(Task::new(future))?;
         self.tasks.push_back(task);
         Some(())
     }
