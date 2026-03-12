@@ -17,7 +17,7 @@ pub struct String {
 ///
 /// `StringRef` is useful as a cheap handle when the caller can guarantee the
 /// underlying bytes stay alive.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone)]
 pub struct StringRef {
     buffer: *const u8,
     len: usize,
@@ -121,6 +121,26 @@ impl PartialEq<[u8]> for StringRef {
 impl PartialEq<String> for StringRef {
     fn eq(&self, other: &String) -> bool {
         self.deref() == other.deref()
+    }
+}
+
+impl PartialEq for StringRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.deref() == other.deref()
+    }
+}
+
+impl Eq for StringRef {}
+
+impl PartialOrd for StringRef {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for StringRef {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.deref().cmp(other.deref())
     }
 }
 
