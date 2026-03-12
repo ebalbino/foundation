@@ -6,6 +6,7 @@ use std::io::Write;
 fn builds_from_multiple_pages() {
     let arena = arena(256);
     let mut builder = buffer_builder(arena, 8);
+    assert_eq!(builder.page_size(), 8);
 
     builder.append([1, 2, 3, 4, 5]).unwrap();
     builder.append([6, 7, 8, 9, 10]).unwrap();
