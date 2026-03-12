@@ -1,7 +1,7 @@
-//! A small JSON-backed template renderer.
+//! A small table-backed template renderer.
 //!
 //! Templates are parsed into a compact node tree and rendered against a
-//! [`json::JsonValue`] binding. The syntax is intentionally minimal:
+//! [`Bindings`] table. The syntax is intentionally minimal:
 //!
 //! - `{{path}}` evaluates and renders a value
 //! - `{{#if path}}...{{else}}...{{/if}}` renders conditionally
@@ -14,23 +14,41 @@
 //! - `$root` to force lookup from the root binding
 //! - dotted access such as `user.name` or `items.0`
 //!
-//! Missing values render as empty output. Truthiness follows JSON-like rules:
-//! `null`, `false`, `0`, empty strings, empty arrays, and empty objects are falsey.
+//! Missing values render as empty output. Truthiness follows simple data-model
+//! rules: `null`, `false`, `0`, empty strings, empty arrays, and empty tables
+//! are falsey.
 
 use crate::alloc::string::String;
 use crate::alloc::{Arena, StringBuilder, string_builder};
+use crate::rust_alloc::collections::BTreeMap;
 use crate::rust_alloc::borrow::ToOwned;
 use crate::rust_alloc::format;
 use crate::rust_alloc::rc::Rc;
 use crate::rust_alloc::string::String as StdString;
-use crate::rust_alloc::vec;
 use crate::rust_alloc::vec::Vec;
-use json::JsonValue;
+use crate::alloc::String;
+#[cfg(feature = "std")]
+use crate::file;
 use core::fmt::{self, Write};
 #[cfg(feature = "std")]
 use std::path::Path;
 
-/// A parsed template ready to be rendered against JSON data.
+/// Table type used for template bindings.
+pub type Bindings = BTreeMap<StdString, BindingValue>;
+
+/// Template value model used during path lookup and rendering.
+#[derive(Debug, Clone, PartialEq)]
+pub enum BindingValue {
+    Null,
+    Bool(bool),
+    Integer(i64),
+    Float(f64),
+    String(StdString),
+    List(Vec<BindingValue>),
+    Table(Bindings),
+}
+
+/// A parsed template ready to be rendered against table data.
 #[derive(Debug, Clone)]
 pub struct Template {
     nodes: Vec<Node>,
@@ -82,7 +100,7 @@ impl Template {
     /// Loads a template from disk and parses it.
     #[cfg(feature = "std")]
     pub fn load(path: impl AsRef<Path>) -> Result<Self, TemplateError> {
-        let source = std::fs::read_to_string(path.as_ref()).map_err(|e| {
+        let source = file::load(path.as_ref()).map(String::from).map_err(|e| {
             TemplateError::Io(format!(
                 "Unable to load template {}: {e}",
                 path.as_ref().display()
@@ -96,7 +114,7 @@ impl Template {
     ///
     /// Returns `None` if the builder cannot allocate additional space while
     /// rendering.
-    pub fn render(&self, builder: &mut StringBuilder, binding: &JsonValue) -> Option<()> {
+    pub fn render(&self, builder: &mut StringBuilder, binding: &Bindings) -> Option<()> {
         let mut scope = Scope::new(binding);
         render_nodes(&self.nodes, builder, &mut scope)
     }
@@ -109,7 +127,7 @@ impl Template {
         &self,
         arena: &Rc<Arena>,
         page_size: usize,
-        binding: &JsonValue,
+        binding: &Bindings,
     ) -> Option<String> {
         let mut builder = string_builder(arena.clone(), page_size);
         self.render(&mut builder, binding)?;
@@ -154,42 +172,39 @@ enum StopTag {
 
 #[derive(Debug, Clone)]
 enum Resolved<'a> {
-    Value(&'a JsonValue),
+    Value(&'a BindingValue),
     Index(usize),
 }
 
 #[derive(Debug, Clone, Copy)]
 struct Frame<'a> {
-    value: &'a JsonValue,
+    value: &'a BindingValue,
     index: Option<usize>,
 }
 
 #[derive(Debug, Clone)]
 struct Scope<'a> {
-    root: &'a JsonValue,
+    root: &'a Bindings,
     stack: Vec<Frame<'a>>,
 }
 
 impl<'a> Scope<'a> {
-    fn new(root: &'a JsonValue) -> Self {
+    fn new(root: &'a Bindings) -> Self {
         Self {
             root,
-            stack: vec![Frame {
-                value: root,
-                index: None,
-            }],
+            stack: Vec::new(),
         }
     }
 
-    fn current(&self) -> &'a JsonValue {
-        self.stack.last().map(|f| f.value).unwrap_or(self.root)
+    fn current(&self) -> Option<&'a BindingValue> {
+        self.stack.last().map(|f| f.value)
     }
 
     fn current_index(&self) -> Option<usize> {
         self.stack.last().and_then(|f| f.index)
     }
 
-    fn push(&mut self, value: &'a JsonValue, index: usize) {
+    fn push(&mut self, value: &'a BindingValue, index: usize) {
         self.stack.push(Frame {
             value,
             index: Some(index),
@@ -392,14 +407,14 @@ fn render_nodes(nodes: &[Node], builder: &mut StringBuilder, scope: &mut Scope<'
             Node::Each { binding, body } => {
                 if let Some(Resolved::Value(value)) = resolve(binding, scope) {
                     match value {
-                        JsonValue::Array(items) => {
+                        BindingValue::List(items) => {
                             for (index, item) in items.iter().enumerate() {
                                 scope.push(item, index);
                                 render_nodes(body, builder, scope)?;
                                 scope.pop();
                             }
                         }
-                        JsonValue::Object(entries) => {
+                        BindingValue::Table(entries) => {
                             for (index, (_, value)) in entries.iter().enumerate() {
                                 scope.push(value, index);
                                 render_nodes(body, builder, scope)?;
@@ -424,10 +439,13 @@ fn render_eval(path: &str, builder: &mut StringBuilder, scope: &Scope<'_>) -> Op
     match value {
         Resolved::Index(index) => write!(builder, "{index}").ok()?,
         Resolved::Value(value) => {
-            if let Some(s) = value.as_str() {
-                builder.append(s)?;
-            } else {
-                write!(builder, "{value}").ok()?;
+            match value {
+                BindingValue::Null => {}
+                BindingValue::Bool(v) => write!(builder, "{v}").ok()?,
+                BindingValue::Integer(v) => write!(builder, "{v}").ok()?,
+                BindingValue::Float(v) => write!(builder, "{v}").ok()?,
+                BindingValue::String(v) => builder.append(v)?,
+                BindingValue::List(_) | BindingValue::Table(_) => write!(builder, "{value}").ok()?,
             }
         }
     }
@@ -443,15 +461,15 @@ fn expression_truthy(path: &str, scope: &Scope<'_>) -> bool {
     }
 }
 
-fn value_truthy(value: &JsonValue) -> bool {
+fn value_truthy(value: &BindingValue) -> bool {
     match value {
-        JsonValue::Null => false,
-        JsonValue::Boolean(v) => *v,
-        JsonValue::Short(s) => !s.is_empty(),
-        JsonValue::String(s) => !s.is_empty(),
-        JsonValue::Number(n) => n.as_fixed_point_i64(0).is_some_and(|v| v != 0),
-        JsonValue::Array(values) => !values.is_empty(),
-        JsonValue::Object(entries) => !entries.is_empty(),
+        BindingValue::Null => false,
+        BindingValue::Bool(v) => *v,
+        BindingValue::Integer(v) => *v != 0,
+        BindingValue::Float(v) => *v != 0.0,
+        BindingValue::String(s) => !s.is_empty(),
+        BindingValue::List(values) => !values.is_empty(),
+        BindingValue::Table(entries) => !entries.is_empty(),
     }
 }
 
@@ -469,14 +487,15 @@ fn resolve<'a>(path: &str, scope: &Scope<'a>) -> Option<Resolved<'a>> {
     let first = parts.next()?;
 
     let mut current = if first == "$root" {
-        scope.root
+        let first = parts.next()?;
+        scope.root.get(first)?
     } else if first == "this" {
-        scope.current()
+        scope.current()?
     } else {
-        match get_child(scope.current(), first) {
-            Some(value) => value,
-            None => get_child(scope.root, first)?,
-        }
+        scope
+            .current()
+            .and_then(|value| get_child(value, first))
+            .or_else(|| scope.root.get(first))?
     };
 
     for part in parts {
@@ -486,13 +505,45 @@ fn resolve<'a>(path: &str, scope: &Scope<'a>) -> Option<Resolved<'a>> {
     Some(Resolved::Value(current))
 }
 
-fn get_child<'a>(value: &'a JsonValue, part: &str) -> Option<&'a JsonValue> {
+fn get_child<'a>(value: &'a BindingValue, part: &str) -> Option<&'a BindingValue> {
     match value {
-        JsonValue::Object(entries) => entries.get(part),
-        JsonValue::Array(items) => {
+        BindingValue::Table(entries) => entries.get(part),
+        BindingValue::List(items) => {
             let index = part.parse::<usize>().ok()?;
             items.get(index)
         }
         _ => None,
+    }
+}
+
+impl fmt::Display for BindingValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BindingValue::Null => write!(f, "null"),
+            BindingValue::Bool(v) => write!(f, "{v}"),
+            BindingValue::Integer(v) => write!(f, "{v}"),
+            BindingValue::Float(v) => write!(f, "{v}"),
+            BindingValue::String(v) => write!(f, "{v}"),
+            BindingValue::List(values) => {
+                write!(f, "[")?;
+                for (index, value) in values.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{value}")?;
+                }
+                write!(f, "]")
+            }
+            BindingValue::Table(entries) => {
+                write!(f, "{{")?;
+                for (index, (key, value)) in entries.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, ",")?;
+                    }
+                    write!(f, "{key}:{value}")?;
+                }
+                write!(f, "}}")
+            }
+        }
     }
 }
