@@ -33,13 +33,6 @@ pub fn make(arena: Rc<Arena>, s: impl AsRef<[u8]>) -> Option<String> {
     })
 }
 
-/// Wraps an existing byte allocation as [`String`].
-///
-/// The caller must ensure the bytes contain valid UTF-8.
-pub fn wrap(buffer: Allocated<u8>) -> String {
-    String::from(buffer)
-}
-
 /// Duplicates a string into unused space in the same arena.
 pub fn duplicate(s: &String) -> Option<String> {
     alloc::duplicate(&s.buffer).map(|buffer| String { buffer })

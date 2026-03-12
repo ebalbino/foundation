@@ -1,5 +1,5 @@
 use foundation::alloc::arena;
-use foundation::alloc::string;
+use foundation::alloc::String;
 use foundation::file;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -44,7 +44,7 @@ fn save_and_append_round_trip_file_contents() {
 
     file::save(&path, b"hello").unwrap();
     let appended = file::append(&path, b" world").unwrap();
-    let written = file::load(arena.clone(), &path).map(string::wrap).unwrap();
+    let written = file::load(arena.clone(), &path).map(String::from).unwrap();
 
     assert_eq!(appended, 6);
     assert_eq!(&written, "hello world");
@@ -81,7 +81,7 @@ fn shell_helpers_manage_files_and_directories() {
 
     file::copy(&source, &copy).unwrap();
     assert_eq!(
-        &file::load(arena.clone(), &copy).map(string::wrap).unwrap(),
+        &file::load(arena.clone(), &copy).map(String::from).unwrap(),
         "hello"
     );
 

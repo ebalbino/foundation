@@ -1,4 +1,4 @@
-use foundation::alloc::{arena, string};
+use foundation::alloc::{arena, string, String};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -9,7 +9,7 @@ fn make_and_wrap_preserve_contents() {
     let string = string::make(arena.clone(), "Hello, world!").unwrap();
     let mut buffer = arena.allocate::<u8>("Hello, world!".len()).unwrap();
     buffer.copy_from_slice(b"Hello, world!");
-    let wrapped = string::wrap(buffer);
+    let wrapped = String::from(buffer);
 
     assert_eq!(&string, "Hello, world!");
     assert_eq!(&wrapped, "Hello, world!");
