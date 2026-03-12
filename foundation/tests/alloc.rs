@@ -42,7 +42,7 @@ fn duplicate_copies_into_new_allocation() {
         })
         .unwrap();
 
-    let copy = alloc::duplicate(&values).unwrap();
+    let copy = alloc::dup(&values).unwrap();
 
     assert_eq!(arena.current_position(), 12);
     assert_eq!(values[..], copy[..]);

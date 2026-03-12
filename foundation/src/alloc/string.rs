@@ -34,8 +34,8 @@ pub fn make(arena: Rc<Arena>, s: impl AsRef<[u8]>) -> Option<String> {
 }
 
 /// Duplicates a string into unused space in the same arena.
-pub fn duplicate(s: &String) -> Option<String> {
-    alloc::duplicate(&s.buffer).map(|buffer| String { buffer })
+pub fn dup(s: &String) -> Option<String> {
+    alloc::dup(&s.buffer).map(|buffer| String { buffer })
 }
 
 impl String {

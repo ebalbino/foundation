@@ -81,7 +81,7 @@ pub fn arena(capacity: usize) -> Rc<Arena> {
 /// Copies an existing arena allocation into unused space in the same arena.
 ///
 /// Returns `None` if the arena no longer exists or there is not enough capacity.
-pub fn duplicate<T: Copy>(src: &Allocated<T>) -> Option<Allocated<T>> {
+pub fn dup<T: Copy>(src: &Allocated<T>) -> Option<Allocated<T>> {
     let arena = src.arena.upgrade()?;
     arena.allocate::<T>(src.len()).map(|mut clone: Allocated<T>| {
         clone.copy_from_slice(src);

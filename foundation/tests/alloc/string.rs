@@ -28,7 +28,7 @@ fn clone_and_duplicate_manage_storage_distinctly() {
     assert_eq!(Rc::weak_count(&arena), 2);
     assert_eq!(string.as_ptr(), clone.as_ptr());
 
-    let duplicate = string::duplicate(&string).unwrap();
+    let duplicate = string::dup(&string).unwrap();
     assert_eq!(arena.current_position(), 10);
     assert_eq!(&duplicate, "hello");
     assert_ne!(string.as_ptr(), duplicate.as_ptr());
